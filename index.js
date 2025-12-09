@@ -17,7 +17,28 @@ async function run() {
     const db = client.db('edubridge');
     const usersCollection = db.collection('users');
 
+    // users post api
+    app.post('/signup', async (req, res) => {
+      try {
+        const existing = await usersCollection.findOne({
+          email: req.body.email,
+        });
 
+        if (existing) {
+          return res.status(400).json({
+            message: 'Email already exists',
+          });
+        }
+
+        const result = await usersCollection.insertOne(req.body);
+        res.send(result);
+      } catch (error) {
+        res.status(400).json({
+          message: 'Failed to create user!',
+          error,
+        });
+      }
+    });
   } catch (error) {
     console.error(error);
   }
