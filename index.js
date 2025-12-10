@@ -29,6 +29,7 @@ const verifyJwtToken = (req, res, next) => {
     }
 
     req.decoded = decoded;
+
     next();
   });
 };
@@ -48,6 +49,7 @@ async function run() {
 
     const db = client.db('edubridge');
     const usersCollection = db.collection('users');
+    const tuitionsCollection = db.collection('tuitions');
 
     // signup route
     app.post('/signup', async (req, res) => {
@@ -64,6 +66,23 @@ async function run() {
         console.error('Signup error:', error);
         res.status(400).json({ message: 'Failed to create user!', error });
       }
+    });
+
+    // Tuitions API
+    app.post('/tuitions', verifyJwtToken, async (req, res) => {
+      const { uid, userType } = req.decoded;
+
+      if (userType !== 'student') {
+        return res.status(403).send({ message: 'Only students can post tuitions' });
+      }
+
+      const body = req.body;
+      body.studentId = uid;
+      body.status = 'pending';
+      body.createdAt = new Date();
+
+      const result = await tuitionsCollection.insertOne(body);
+      res.send(result);
     });
 
     //  JWT
