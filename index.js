@@ -129,6 +129,23 @@ async function run() {
       res.send(result);
     });
 
+    // Delete api
+    app.delete('/tuitions/:id', verifyJwtToken, async (req, res) => {
+      const { uid, userType } = req.decoded;
+      if (userType !== 'student') {
+        return res.status(403).send({ message: 'Only students can delete tuitions' });
+      }
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id), studentId: uid };
+
+      if (result.deletedCount === 0) {
+        return res.status(404).send({ message: 'Tuition not found or not owned by this student' });
+      }
+
+      const result = await tuitionsCollection.deleteOne(query);
+      res.send(result);
+    });
+
     //  JWT
     app.post('/api/auth/jwt', async (req, res) => {
       try {
