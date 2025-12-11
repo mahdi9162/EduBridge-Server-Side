@@ -69,6 +69,7 @@ async function run() {
     });
 
     // Tuitions API
+    //post api
     app.post('/tuitions', verifyJwtToken, async (req, res) => {
       const { uid, userType } = req.decoded;
 
@@ -82,6 +83,19 @@ async function run() {
       body.createdAt = new Date();
 
       const result = await tuitionsCollection.insertOne(body);
+      res.send(result);
+    });
+
+    // get api
+    app.get('/tuitions', verifyJwtToken, async (req, res) => {
+      const { uid, userType } = req.decoded;
+
+      if (userType !== 'student') {
+        return res.status(403).send({ message: 'Only students can get tuitions' });
+      }
+      const query = { studentId: uid };
+      const cursor = tuitionsCollection.find(query);
+      const result = await cursor.toArray();
       res.send(result);
     });
 
