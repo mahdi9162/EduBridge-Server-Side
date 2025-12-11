@@ -99,6 +99,18 @@ async function run() {
       res.send(result);
     });
 
+    // get api
+    app.get('/all-tuitions', async (req, res) => {
+      const query = { status: 'pending' };
+      const cursor = tuitionsCollection.find(query, {
+        projection: {
+          studentId: 0,
+        },
+      });
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+
     // update api
     app.patch('/tuitions/:id', verifyJwtToken, async (req, res) => {
       const { uid, userType } = req.decoded;
@@ -138,11 +150,11 @@ async function run() {
       const id = req.params.id;
       const query = { _id: new ObjectId(id), studentId: uid };
 
+      const result = await tuitionsCollection.deleteOne(query);
       if (result.deletedCount === 0) {
         return res.status(404).send({ message: 'Tuition not found or not owned by this student' });
       }
 
-      const result = await tuitionsCollection.deleteOne(query);
       res.send(result);
     });
 
