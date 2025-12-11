@@ -2,7 +2,7 @@ import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import jwt from 'jsonwebtoken';
-import { MongoClient } from 'mongodb';
+import { MongoClient, ObjectId } from 'mongodb';
 import { createRequire } from 'module';
 
 dotenv.config();
@@ -96,6 +96,36 @@ async function run() {
       const query = { studentId: uid };
       const cursor = tuitionsCollection.find(query);
       const result = await cursor.toArray();
+      res.send(result);
+    });
+
+    // update api
+    app.patch('/tuitions/:id', verifyJwtToken, async (req, res) => {
+      const { uid, userType } = req.decoded;
+      if (userType !== 'student') {
+        return res.status(403).send({ message: 'Only students can update tuitions' });
+      }
+
+      const { title, classLevel, subject, location, budget } = req.body;
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id), studentId: uid };
+
+      const updatedDoc = {
+        $set: {
+          title,
+          classLevel,
+          subject,
+          location,
+          budget,
+        },
+      };
+
+      const result = await tuitionsCollection.updateOne(query, updatedDoc);
+
+      if (result.matchedCount === 0) {
+        return res.status(404).send({ message: 'Tuition not found or not yours' });
+      }
+
       res.send(result);
     });
 
