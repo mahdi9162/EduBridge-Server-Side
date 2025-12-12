@@ -99,7 +99,7 @@ async function run() {
       res.send(result);
     });
 
-    // get api
+    // get api for public
     app.get('/all-tuitions', async (req, res) => {
       const query = { status: 'pending' };
       const cursor = tuitionsCollection.find(query, {
@@ -108,6 +108,20 @@ async function run() {
         },
       });
       const result = await cursor.toArray();
+      res.send(result);
+    });
+
+    // get tuition details api only for tutor
+    app.get('/tuition-details/:id', verifyJwtToken, async (req, res) => {
+      const { uid, userType } = req.decoded;
+
+      if (userType !== 'teacher') {
+        return res.status(403).send({ message: 'Only teacher can see tuition details!' });
+      }
+
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await tuitionsCollection.findOne(query);
       res.send(result);
     });
 
