@@ -50,6 +50,7 @@ async function run() {
     const db = client.db('edubridge');
     const usersCollection = db.collection('users');
     const tuitionsCollection = db.collection('tuitions');
+    const tuitionApplications = db.collection('applications');
 
     // signup route
     app.post('/signup', async (req, res) => {
@@ -84,6 +85,53 @@ async function run() {
 
       const result = await tuitionsCollection.insertOne(body);
       res.send(result);
+    });
+    // Tuition Application
+    // post api
+    app.post('/applications/:id', verifyJwtToken, async (req, res) => {
+      try {
+        const { uid, userType } = req.decoded;
+        const { id: tuitionId } = req.params;
+
+        if (userType !== 'teacher') {
+          return res.status(403).send({ message: 'Only teacher can apply for tuitions!' });
+        }
+
+        const tuitionObjectId = new ObjectId(tuitionId);
+
+        const tuition = await tuitionsCollection.findOne({ _id: tuitionObjectId });
+
+        if (!tuition) {
+          return res.status(404).send({ message: 'Tuition not found.' });
+        }
+
+        const studentId = tuition.studentId;
+
+        const existing = await tuitionApplications.findOne({
+          tuitionId: tuitionObjectId,
+          tutorId: uid,
+        });
+
+        if (existing) {
+          return res.status(409).send({
+            message: 'You have already applied for this tuition.',
+          });
+        }
+
+        const body = req.body;
+        body.studentBudget = Number(body.studentBudget);
+        body.tutorId = uid;
+        body.tuitionId = tuitionObjectId;
+        body.studentId = studentId;
+        body.applyStatus = 'pending';
+        body.createdAt = new Date();
+
+        const result = await tuitionApplications.insertOne(body);
+        res.send(result);
+      } catch (error) {
+        console.log(error);
+        return res.status(500).send({ message: 'Internal server error' });
+      }
     });
 
     // get api
