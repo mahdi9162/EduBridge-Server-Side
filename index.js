@@ -229,12 +229,103 @@ async function run() {
         const { uid, userType } = req.decoded;
 
         if (userType !== 'teacher') {
-          return res.status(403).send({ message: 'Only teacher see their applicatios!' });
+          return res.status(403).send({ message: 'Only teacher can see their applicatios!' });
         }
 
         const result = await tuitionApplications.find({ tutorId: uid }).sort({ createdAt: -1 }).toArray();
 
         res.send(result);
+      } catch (error) {
+        console.log(error);
+      }
+    });
+
+    // get application for student
+    app.get('/tutor-applications', verifyJwtToken, async (req, res) => {
+      try {
+        const { uid, userType } = req.decoded;
+
+        if (userType !== 'student') {
+          return res.status(403).send({ message: 'Only student can see tutor applicatios!' });
+        }
+
+        const result = await tuitionApplications.find({ studentId: uid }).sort({ createdAt: -1 }).toArray();
+        res.send(result);
+      } catch (error) {
+        console.log(error);
+      }
+    });
+
+    // tutor status reject patch api
+    app.patch('/applications/:id', verifyJwtToken, async (req, res) => {
+      try {
+        const { uid, userType } = req.decoded;
+
+        if (userType !== 'student') {
+          return res.status(403).send({ message: 'Only student can update application status!' });
+        }
+
+        const id = req.params.id;
+        const { applyStatus } = req.body;
+
+        if (!applyStatus) {
+          return res.status(400).send({ message: 'applyStatus is required' });
+        }
+
+        const query = { _id: new ObjectId(id), studentId: uid };
+
+        const updatedDoc = {
+          $set: { applyStatus },
+        };
+
+        const result = await tuitionApplications.updateOne(query, updatedDoc);
+        res.send(result);
+      } catch (error) {
+        console.log(error);
+      }
+    });
+
+    // tutor status select patch api
+    app.patch('/select-applications/:id', verifyJwtToken, async (req, res) => {
+      try {
+        const { uid, userType } = req.decoded;
+
+        if (userType !== 'student') {
+          return res.status(403).send({ message: 'Only student can update application status!' });
+        }
+
+        const id = req.params.id;
+        const selectedId = new ObjectId(id);
+
+        const selectedApplication = await tuitionApplications.findOne({ _id: selectedId, studentId: uid });
+
+        if (!selectedApplication) {
+          return res.status(404).send({ message: 'Application not found!' });
+        }
+
+        const tuitionId = selectedApplication.tuitionId;
+
+        // select one
+        const selectResult = await tuitionApplications.updateOne(
+          { _id: selectedId, studentId: uid },
+          { $set: { applyStatus: 'selected' } }
+        );
+
+        // reject all
+        const rejectOthersResult = await tuitionApplications.updateMany(
+          {
+            tuitionId,
+            studentId: uid,
+            applyStatus: 'pending',
+            _id: { $ne: selectedId },
+          },
+          { $set: { applyStatus: 'rejected' } }
+        );
+
+        res.send({
+          selectResult,
+          rejectOthersResult,
+        });
       } catch (error) {
         console.log(error);
       }
