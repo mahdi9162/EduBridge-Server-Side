@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { application } from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import jwt from 'jsonwebtoken';
@@ -86,53 +86,6 @@ async function run() {
       const result = await tuitionsCollection.insertOne(body);
       res.send(result);
     });
-    // Tuition Application
-    // post api
-    app.post('/applications/:id', verifyJwtToken, async (req, res) => {
-      try {
-        const { uid, userType } = req.decoded;
-        const { id: tuitionId } = req.params;
-
-        if (userType !== 'teacher') {
-          return res.status(403).send({ message: 'Only teacher can apply for tuitions!' });
-        }
-
-        const tuitionObjectId = new ObjectId(tuitionId);
-
-        const tuition = await tuitionsCollection.findOne({ _id: tuitionObjectId });
-
-        if (!tuition) {
-          return res.status(404).send({ message: 'Tuition not found.' });
-        }
-
-        const studentId = tuition.studentId;
-
-        const existing = await tuitionApplications.findOne({
-          tuitionId: tuitionObjectId,
-          tutorId: uid,
-        });
-
-        if (existing) {
-          return res.status(409).send({
-            message: 'You have already applied for this tuition.',
-          });
-        }
-
-        const body = req.body;
-        body.studentBudget = Number(body.studentBudget);
-        body.tutorId = uid;
-        body.tuitionId = tuitionObjectId;
-        body.studentId = studentId;
-        body.applyStatus = 'pending';
-        body.createdAt = new Date();
-
-        const result = await tuitionApplications.insertOne(body);
-        res.send(result);
-      } catch (error) {
-        console.log(error);
-        return res.status(500).send({ message: 'Internal server error' });
-      }
-    });
 
     // get api
     app.get('/tuitions', verifyJwtToken, async (req, res) => {
@@ -150,11 +103,14 @@ async function run() {
     // get api for public
     app.get('/all-tuitions', async (req, res) => {
       const query = { status: 'pending' };
-      const cursor = tuitionsCollection.find(query, {
-        projection: {
-          studentId: 0,
-        },
-      });
+      const cursor = tuitionsCollection
+        .find(query, {
+          projection: {
+            studentId: 0,
+          },
+        })
+        .sort({ createdAt: -1 });
+
       const result = await cursor.toArray();
       res.send(result);
     });
@@ -218,6 +174,70 @@ async function run() {
       }
 
       res.send(result);
+    });
+
+    // Application Collection
+    // Tuition Application
+    // post api
+    app.post('/applications/:id', verifyJwtToken, async (req, res) => {
+      try {
+        const { uid, userType } = req.decoded;
+        const { id: tuitionId } = req.params;
+
+        if (userType !== 'teacher') {
+          return res.status(403).send({ message: 'Only teacher can apply for tuitions!' });
+        }
+
+        const tuitionObjectId = new ObjectId(tuitionId);
+
+        const tuition = await tuitionsCollection.findOne({ _id: tuitionObjectId });
+
+        if (!tuition) {
+          return res.status(404).send({ message: 'Tuition not found.' });
+        }
+
+        const studentId = tuition.studentId;
+
+        const existing = await tuitionApplications.findOne({
+          tuitionId: tuitionObjectId,
+          tutorId: uid,
+        });
+
+        if (existing) {
+          return res.status(409).send({
+            message: 'You have already applied for this tuition.',
+          });
+        }
+        const body = req.body;
+        body.tutorId = uid;
+        body.tuitionId = tuitionObjectId;
+        body.studentId = studentId;
+        body.applyStatus = 'pending';
+        body.createdAt = new Date();
+
+        const result = await tuitionApplications.insertOne(body);
+        res.send(result);
+      } catch (error) {
+        console.log(error);
+        return res.status(500).send({ message: 'Internal server error' });
+      }
+    });
+
+    // get api for application collection- only for tutor
+    app.get('/applications', verifyJwtToken, async (req, res) => {
+      try {
+        const { uid, userType } = req.decoded;
+
+        if (userType !== 'teacher') {
+          return res.status(403).send({ message: 'Only teacher see their applicatios!' });
+        }
+
+        const result = await tuitionApplications.find({ tutorId: uid }).sort({ createdAt: -1 }).toArray();
+
+        res.send(result);
+      } catch (error) {
+        console.log(error);
+      }
     });
 
     //  JWT
