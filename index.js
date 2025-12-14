@@ -90,6 +90,38 @@ async function run() {
       }
     });
 
+    // users update api by admin
+    app.patch('/admin/users/:id', verifyJwtToken, async (req, res) => {
+      const { userType: requestUserType } = req.decoded;
+
+      if (requestUserType !== 'admin') {
+        return res.status(403).send({ message: 'Only admin can update user profile' });
+      }
+
+      try {
+        const { name, classLevel, teachingClass, subject, phone, userType: updatedUserType } = req.body;
+        const id = req.params.id;
+
+        const query = { _id: new ObjectId(id) };
+
+        const updatedDoc = {
+          $set: {
+            name,
+            classLevel,
+            teachingClass,
+            subject,
+            phone,
+            userType: updatedUserType,
+          },
+        };
+
+        const result = await usersCollection.updateOne(query, updatedDoc);
+        res.send(result);
+      } catch (error) {
+        console.log(error);
+      }
+    });
+
     // Tuitions API
     //post api
     app.post('/tuitions', verifyJwtToken, async (req, res) => {
