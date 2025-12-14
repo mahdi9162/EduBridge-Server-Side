@@ -52,6 +52,7 @@ async function run() {
     const tuitionsCollection = db.collection('tuitions');
     const tuitionApplications = db.collection('applications');
 
+    // User Collections
     // signup route
     app.post('/signup', async (req, res) => {
       try {
@@ -61,11 +62,31 @@ async function run() {
           return res.status(200).json({ message: 'Email already exists' });
         }
 
-        const result = await usersCollection.insertOne(req.body);
+        const body = req.body;
+        body.createdAt = new Date();
+
+        const result = await usersCollection.insertOne(body);
         res.send(result);
       } catch (error) {
         console.error('Signup error:', error);
         res.status(400).json({ message: 'Failed to create user!', error });
+      }
+    });
+    // users get api
+    app.get('/users', verifyJwtToken, async (req, res) => {
+      const { userType } = req.decoded;
+
+      if (userType !== 'admin') {
+        return res.status(403).send({ message: 'Only admin can see users info!' });
+      }
+
+      try {
+        const query = {};
+        const result = await usersCollection.find(query).sort({ createdAt: -1 }).toArray();
+        res.send(result);
+      } catch (error) {
+        console.log(error);
+        res.status(500).send({ message: 'Failed to fetch users' });
       }
     });
 
@@ -80,7 +101,7 @@ async function run() {
 
       const body = req.body;
       body.studentId = uid;
-      body.status = 'pending';
+      body.status = 'open';
       body.postStatus = 'pending';
       body.createdAt = new Date();
 
@@ -103,7 +124,7 @@ async function run() {
 
     // get api for public
     app.get('/all-tuitions', async (req, res) => {
-      const query = { status: 'pending' };
+      const query = { status: 'open' };
       const cursor = tuitionsCollection
         .find(query, {
           projection: {
