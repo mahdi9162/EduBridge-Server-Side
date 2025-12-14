@@ -122,6 +122,30 @@ async function run() {
       }
     });
 
+    // users delete api by admin
+    app.delete('/admin/users/:id', verifyJwtToken, async (req, res) => {
+      const { userType } = req.decoded;
+
+      if (userType !== 'admin') {
+        return res.status(403).send({ message: 'Only admin can delete user profile' });
+      }
+
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+
+        const result = await usersCollection.deleteOne(query);
+
+        if (result.deletedCount === 0) {
+          return res.status(404).send({ message: 'User not found' });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.log(error);
+      }
+    });
+
     // Tuitions API
     //post api
     app.post('/tuitions', verifyJwtToken, async (req, res) => {
