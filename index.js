@@ -81,6 +81,7 @@ async function run() {
       const body = req.body;
       body.studentId = uid;
       body.status = 'pending';
+      body.postStatus = 'pending';
       body.createdAt = new Date();
 
       const result = await tuitionsCollection.insertOne(body);
@@ -91,12 +92,12 @@ async function run() {
     app.get('/tuitions', verifyJwtToken, async (req, res) => {
       const { uid, userType } = req.decoded;
 
-      if (userType !== 'student') {
-        return res.status(403).send({ message: 'Only students can get tuitions' });
+      if (userType !== 'student' && userType !== 'admin') {
+        return res.status(403).send({ message: 'Only students and admin can get tuitions' });
       }
-      const query = { studentId: uid };
-      const cursor = tuitionsCollection.find(query);
-      const result = await cursor.toArray();
+      const query = userType === 'student' ? { studentId: uid } : {};
+
+      const result = await tuitionsCollection.find(query).sort({ createdAt: -1 }).toArray();
       res.send(result);
     });
 
@@ -154,6 +155,38 @@ async function run() {
 
       if (result.matchedCount === 0) {
         return res.status(404).send({ message: 'Tuition not found or not yours' });
+      }
+
+      res.send(result);
+    });
+
+    // tuition patch api for postStatus pending to approved or reject
+    app.patch('/tuitions-status/:id', verifyJwtToken, async (req, res) => {
+      const { uid, userType } = req.decoded;
+
+      if (userType !== 'admin') {
+        return res.status(403).send({ message: 'Only admin can approved or reject tuitions post!' });
+      }
+
+      const { postStatus } = req.body;
+
+      if (!['approved', 'rejected'].includes(postStatus)) {
+        return res.status(400).send({ message: 'Invalid status' });
+      }
+
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+
+      const updatedDoc = {
+        $set: {
+          postStatus,
+        },
+      };
+
+      const result = await tuitionsCollection.updateOne(query, updatedDoc);
+
+      if (result.matchedCount === 0) {
+        return res.status(404).send({ message: 'Tuition post not found' });
       }
 
       res.send(result);
@@ -305,10 +338,23 @@ async function run() {
 
         const tuitionId = selectedApplication.tuitionId;
 
+        // tuition collection update
+        await tuitionsCollection.updateOne(
+          { _id: tuitionId, studentId: uid },
+          {
+            $set: {
+              status: 'selected_pending_payment',
+              selectedApplicationId: selectedId,
+              selectedTutorId: selectedApplication.tutorId,
+              selectedAt: new Date(),
+            },
+          }
+        );
+
         // select one
         const selectResult = await tuitionApplications.updateOne(
           { _id: selectedId, studentId: uid },
-          { $set: { applyStatus: 'selected' } }
+          { $set: { applyStatus: 'selected_pending_payment', selectedAt: new Date() } }
         );
 
         // reject all
