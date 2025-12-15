@@ -4,8 +4,9 @@ import cors from 'cors';
 import jwt from 'jsonwebtoken';
 import { MongoClient, ObjectId } from 'mongodb';
 import { createRequire } from 'module';
-
 dotenv.config();
+import Stripe from 'stripe';
+const stripe = new Stripe(process.env.STRIPE_SECRET);
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -407,63 +408,93 @@ async function run() {
       }
     });
 
-    // tutor status select patch api
-    app.patch('/select-applications/:id', verifyJwtToken, async (req, res) => {
-      try {
-        const { uid, userType } = req.decoded;
+    // // tutor status select patch api
+    // app.patch('/select-applications/:id', verifyJwtToken, async (req, res) => {
+    //   try {
+    //     const { uid, userType } = req.decoded;
 
-        if (userType !== 'student') {
-          return res.status(403).send({ message: 'Only student can update application status!' });
-        }
+    //     if (userType !== 'student') {
+    //       return res.status(403).send({ message: 'Only student can update application status!' });
+    //     }
 
-        const id = req.params.id;
-        const selectedId = new ObjectId(id);
+    //     const id = req.params.id;
+    //     const selectedId = new ObjectId(id);
 
-        const selectedApplication = await tuitionApplications.findOne({ _id: selectedId, studentId: uid });
+    //     const selectedApplication = await tuitionApplications.findOne({ _id: selectedId, studentId: uid });
 
-        if (!selectedApplication) {
-          return res.status(404).send({ message: 'Application not found!' });
-        }
+    //     if (!selectedApplication) {
+    //       return res.status(404).send({ message: 'Application not found!' });
+    //     }
 
-        const tuitionId = selectedApplication.tuitionId;
+    //     const tuitionId = selectedApplication.tuitionId;
 
-        // tuition collection update
-        await tuitionsCollection.updateOne(
-          { _id: tuitionId, studentId: uid },
+    //     // tuition collection update
+    //     await tuitionsCollection.updateOne(
+    //       { _id: tuitionId, studentId: uid },
+    //       {
+    //         $set: {
+    //           status: 'selected_pending_payment',
+    //           selectedApplicationId: selectedId,
+    //           selectedTutorId: selectedApplication.tutorId,
+    //           selectedAt: new Date(),
+    //         },
+    //       }
+    //     );
+
+    //     // select one
+    //     const selectResult = await tuitionApplications.updateOne(
+    //       { _id: selectedId, studentId: uid },
+    //       { $set: { applyStatus: 'selected_pending_payment', selectedAt: new Date() } }
+    //     );
+
+    //     // reject all
+    //     const rejectOthersResult = await tuitionApplications.updateMany(
+    //       {
+    //         tuitionId,
+    //         studentId: uid,
+    //         _id: { $ne: selectedId },
+    //       },
+    //       { $set: { applyStatus: 'rejected' } }
+    //     );
+
+    //     res.send({
+    //       selectResult,
+    //       rejectOthersResult,
+    //     });
+    //   } catch (error) {
+    //     console.log(error);
+    //     res.status(500).send({ message: 'Server error selecting application' });
+    //   }
+    // });
+
+    // payment api
+    app.post('/create-checkout-session', async (req, res) => {
+      const paymentInfo = req.body;
+      const amount = parseInt(paymentInfo.amount) * 100;
+
+      const session = await stripe.checkout.sessions.create({
+        line_items: [
           {
-            $set: {
-              status: 'selected_pending_payment',
-              selectedApplicationId: selectedId,
-              selectedTutorId: selectedApplication.tutorId,
-              selectedAt: new Date(),
+            price_data: {
+              currency: 'bdt',
+              unit_amount: amount,
+              product_data: {
+                name: paymentInfo.tuitionTitle,
+              },
             },
-          }
-        );
-
-        // select one
-        const selectResult = await tuitionApplications.updateOne(
-          { _id: selectedId, studentId: uid },
-          { $set: { applyStatus: 'selected_pending_payment', selectedAt: new Date() } }
-        );
-
-        // reject all
-        const rejectOthersResult = await tuitionApplications.updateMany(
-          {
-            tuitionId,
-            studentId: uid,
-            applyStatus: 'pending',
-            _id: { $ne: selectedId },
+            quantity: 1,
           },
-          { $set: { applyStatus: 'rejected' } }
-        );
+        ],
+        customer_email: paymentInfo.studentEmail,
+        mode: 'payment',
+        metadata: {
+          tuitionId: paymentInfo.tuitionId,
+        },
+        success_url: `${process.env.SITE_DOMAIN}/dashboard/payment-success`,
+        cancel_url: `${process.env.SITE_DOMAIN}/dashboard/payment-cancelled`,
+      });
 
-        res.send({
-          selectResult,
-          rejectOthersResult,
-        });
-      } catch (error) {
-        console.log(error);
-      }
+      res.send({ url: session.url });
     });
 
     //  JWT
