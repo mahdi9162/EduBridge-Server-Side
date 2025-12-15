@@ -90,6 +90,18 @@ async function run() {
       }
     });
 
+    // get tutor api
+    app.get('/public/tutors', async (req, res) => {
+      try {
+        const query = { userType: 'teacher' };
+        const result = await usersCollection.find(query).sort({ createdAt: -1 }).toArray();
+        res.send(result);
+      } catch (error) {
+        console.log(error);
+        res.status(500).send({ message: 'Failed to fetch tutors' });
+      }
+    });
+
     // users update api by admin
     app.patch('/admin/users/:id', verifyJwtToken, async (req, res) => {
       const { userType: requestUserType } = req.decoded;
