@@ -419,10 +419,16 @@ async function run() {
       if (session.payment_status === 'paid') {
         const tuitionId = session.metadata.tuitionId;
         const applicationId = session.metadata.applicationId;
+        const tuitionTitle = session.metadata.tuitionTitle;
+        const studentName = session.metadata.studentName;
+        const studentEmail = session.metadata.studentEmail;
+        const salary = session.metadata.salary;
 
         if (!tuitionId || !applicationId) {
           return res.status(400).send({ message: 'metadata missing' });
         }
+
+        const tuition = await tuitionsCollection.findOne({ _id: new ObjectId(tuitionId) });
 
         const appQuery = { _id: new ObjectId(applicationId) };
         const tutionQuery = { _id: new ObjectId(tuitionId) };
@@ -430,6 +436,14 @@ async function run() {
         // application update
         const appUpdatedDoc = {
           $set: {
+            tuitionTitle: tuitionTitle,
+            studentName: studentName,
+            studentEmail: studentEmail,
+            salary: salary,
+            subject: tuition?.subject,
+            location: tuition?.location,
+            classLevel: tuition?.classLevel,
+
             applyStatus: 'selected',
             paymentStatus: 'paid',
             paidAt: new Date(),
@@ -439,6 +453,7 @@ async function run() {
         // tution update
         const tuitionUpdatedDoc = {
           $set: {
+            salary: salary,
             status: 'selected',
             paymentStatus: 'paid',
             paidAt: new Date(),
@@ -474,6 +489,10 @@ async function run() {
         metadata: {
           tuitionId: paymentInfo.tuitionId,
           applicationId: paymentInfo.applicationId,
+          tuitionTitle: paymentInfo.tuitionTitle,
+          studentName: paymentInfo.studentName,
+          studentEmail: paymentInfo.studentEmail,
+          salary: paymentInfo.amount,
         },
         success_url: `${process.env.SITE_DOMAIN}/dashboard/payment-success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${process.env.SITE_DOMAIN}/dashboard/payment-cancelled`,
