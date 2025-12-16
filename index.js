@@ -52,6 +52,7 @@ async function run() {
     const usersCollection = db.collection('users');
     const tuitionsCollection = db.collection('tuitions');
     const tuitionApplications = db.collection('applications');
+    const paymentsCollection = db.collection('payments');
 
     // User Collections
     // signup route
@@ -408,7 +409,7 @@ async function run() {
       }
     });
 
-    // tutor status select patch api
+    // payment status select patch api
     app.patch('/payment-success', async (req, res) => {
       const sessionId = req.query.session_id;
 
@@ -419,6 +420,8 @@ async function run() {
       if (session.payment_status === 'paid') {
         const tuitionId = session.metadata.tuitionId;
         const applicationId = session.metadata.applicationId;
+        const tutorId = session.metadata.tutorId;
+        const studentId = session.metadata.studentId;
         const tuitionTitle = session.metadata.tuitionTitle;
         const studentName = session.metadata.studentName;
         const studentEmail = session.metadata.studentEmail;
@@ -431,7 +434,7 @@ async function run() {
         const tuition = await tuitionsCollection.findOne({ _id: new ObjectId(tuitionId) });
 
         const appQuery = { _id: new ObjectId(applicationId) };
-        const tutionQuery = { _id: new ObjectId(tuitionId) };
+        const tuitionQuery = { _id: new ObjectId(tuitionId) };
 
         // application update
         const appUpdatedDoc = {
@@ -460,13 +463,46 @@ async function run() {
           },
         };
 
+        const paymentDoc = {
+          tuitionId,
+          applicationId,
+          tutorId,
+          studentId,
+          tuitionTitle,
+          studentName,
+          studentEmail,
+          amount: salary,
+          status: 'paid',
+          paidAt: new Date(),
+          stripeSessionId: session.id,
+        };
+
+        await paymentsCollection.updateOne({ stripeSessionId: session.id }, { $setOnInsert: paymentDoc }, { upsert: true });
+
         const appResult = await tuitionApplications.updateOne(appQuery, appUpdatedDoc);
-        const tuitionResult = await tuitionsCollection.updateOne(tutionQuery, tuitionUpdatedDoc);
+        const tuitionResult = await tuitionsCollection.updateOne(tuitionQuery, tuitionUpdatedDoc);
         return res.send({ appResult, tuitionResult });
       }
     });
 
-    // payment api
+    // payment get api
+    app.get('/payment-history', verifyJwtToken, async (req, res) => {
+      try {
+        const { uid, userType } = req.decoded;
+
+        if (userType !== 'student' && userType !== 'admin') {
+          return res.status(403).send({ message: 'Only student and admin can see payments history' });
+        }
+
+        const result = await paymentsCollection.find({ studentId: uid }).sort({ paidAt: -1 }).toArray();
+        res.send(result);
+      } catch (error) {
+        console.log(error);
+        res.status(500).send({ message: 'Server error' });
+      }
+    });
+
+    // payment stripe api
     app.post('/create-checkout-session', async (req, res) => {
       const paymentInfo = req.body;
       const amount = parseInt(paymentInfo.amount) * 100;
@@ -489,6 +525,8 @@ async function run() {
         metadata: {
           tuitionId: paymentInfo.tuitionId,
           applicationId: paymentInfo.applicationId,
+          tutorId: paymentInfo.tutorId,
+          studentId: paymentInfo.studentId,
           tuitionTitle: paymentInfo.tuitionTitle,
           studentName: paymentInfo.studentName,
           studentEmail: paymentInfo.studentEmail,
