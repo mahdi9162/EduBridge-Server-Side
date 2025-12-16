@@ -490,11 +490,13 @@ async function run() {
       try {
         const { uid, userType } = req.decoded;
 
-        if (userType !== 'student' && userType !== 'admin') {
-          return res.status(403).send({ message: 'Only student and admin can see payments history' });
+        if (!['student', 'teacher', 'admin'].includes(userType)) {
+          return res.status(403).send({ message: 'Only student, teacher and admin can see payments history' });
         }
 
-        const result = await paymentsCollection.find({ studentId: uid }).sort({ paidAt: -1 }).toArray();
+        const filter = userType === 'admin' ? {} : userType === 'teacher' ? { tutorId: uid } : { studentId: uid };
+
+        const result = await paymentsCollection.find(filter).sort({ paidAt: -1 }).toArray();
         res.send(result);
       } catch (error) {
         console.log(error);
@@ -537,6 +539,49 @@ async function run() {
       });
 
       res.send({ url: session.url });
+    });
+
+    // update api for tutor application
+    app.patch('/application/:id', verifyJwtToken, async (req, res) => {
+      try {
+        const { uid, userType } = req.decoded;
+
+        // only tutor can update
+        if (userType !== 'teacher') {
+          return res.status(403).send({
+            message: 'Only tutor can update their application',
+          });
+        }
+
+        const { qualification, experience, expectedSalary } = req.body;
+        const id = req.params.id;
+
+        const query = {
+          _id: new ObjectId(id),
+          tutorId: uid,
+        };
+
+        const updatedDoc = {
+          $set: {
+            qualification,
+            experience,
+            expectedSalary,
+          },
+        };
+
+        const result = await tuitionApplications.updateOne(query, updatedDoc);
+
+        if (result.matchedCount === 0) {
+          return res.status(404).send({
+            message: 'Application not found or not yours',
+          });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ message: 'Server error' });
+      }
     });
 
     //  JWT
