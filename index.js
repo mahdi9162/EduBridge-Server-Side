@@ -546,7 +546,6 @@ async function run() {
       try {
         const { uid, userType } = req.decoded;
 
-        // only tutor can update
         if (userType !== 'teacher') {
           return res.status(403).send({
             message: 'Only tutor can update their application',
@@ -580,6 +579,39 @@ async function run() {
         res.send(result);
       } catch (error) {
         console.error(error);
+        res.status(500).send({ message: 'Server error' });
+      }
+    });
+
+    // Delete api for tutor application
+    app.delete('/application/:id', verifyJwtToken, async (req, res) => {
+      try {
+        const { uid, userType } = req.decoded;
+
+        if (userType !== 'teacher') {
+          return res.status(403).send({
+            message: 'Only tutor can delete their application',
+          });
+        }
+
+        const id = req.params.id;
+
+        const query = {
+          _id: new ObjectId(id),
+          tutorId: uid,
+        };
+
+        const result = await tuitionApplications.deleteOne(query);
+
+        if (result.deletedCount === 0) {
+          return res.status(404).send({
+            message: 'Application not found or not owned by this tutor',
+          });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.log(error);
         res.status(500).send({ message: 'Server error' });
       }
     });
