@@ -39,11 +39,15 @@ const verifyJwtToken = (req, res, next) => {
 
 const require = createRequire(import.meta.url);
 const admin = require('firebase-admin');
-const serviceAccount = require('./edubridge-production-firebase-adminsdk.json');
 
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-});
+const decoded = Buffer.from(process.env.FB_SERVICE_KEY, 'base64').toString('utf8')
+const serviceAccount = JSON.parse(decoded);
+
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+  });
+}
 
 async function run() {
   try {
@@ -669,7 +673,9 @@ async function run() {
 run().catch(console.dir);
 
 // local only
-if (!process.env.VERCEL) {
+const isVercel = process.env.VERCEL === '1';
+
+if (!isVercel) {
   app.listen(port, () => {
     console.log(`Server running on port ${port}`);
   });
