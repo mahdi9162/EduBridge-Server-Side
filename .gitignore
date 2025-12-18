@@ -1,3 +1,4 @@
 node_modules
 .env
 edubridge-production-firebase-adminsdk.json
+.vercel
