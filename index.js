@@ -625,7 +625,7 @@ async function run() {
       }
     });
 
-    //  JWT
+    //  JWT token
     app.post('/api/auth/jwt', async (req, res) => {
       try {
         const firebaseToken = req.body.token;
