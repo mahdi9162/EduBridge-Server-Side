@@ -10,6 +10,8 @@ const stripe = new Stripe(process.env.STRIPE_SECRET);
 
 const app = express();
 const port = process.env.PORT || 3000;
+const site = process.env.SITE_DOMAIN || 'http://localhost:5173';
+
 const client = new MongoClient(process.env.DATABASE_URL);
 
 app.use(express.json());
@@ -666,6 +668,11 @@ async function run() {
 
 run().catch(console.dir);
 
-app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`);
-});
+// local only
+if (!process.env.VERCEL) {
+  app.listen(port, () => {
+    console.log(`Server running on port ${port}`);
+  });
+}
+
+export default app;
