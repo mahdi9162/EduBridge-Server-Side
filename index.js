@@ -40,7 +40,7 @@ const verifyJwtToken = (req, res, next) => {
 const require = createRequire(import.meta.url);
 const admin = require('firebase-admin');
 
-const decoded = Buffer.from(process.env.FB_SERVICE_KEY, 'base64').toString('utf8')
+const decoded = Buffer.from(process.env.FB_SERVICE_KEY, 'base64').toString('utf8');
 const serviceAccount = JSON.parse(decoded);
 
 if (!admin.apps.length) {
