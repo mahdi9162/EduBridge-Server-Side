@@ -74,6 +74,7 @@ async function run() {
         res.status(400).json({ message: 'Failed to create user!', error });
       }
     });
+
     // users get api
     app.get('/users', verifyJwtToken, async (req, res) => {
       const { userType } = req.decoded;
@@ -426,6 +427,8 @@ async function run() {
         const studentName = session.metadata.studentName;
         const studentEmail = session.metadata.studentEmail;
         const salary = session.metadata.salary;
+        const tutorAmount = session.metadata.tutorAmount;
+        const adminFee = session.metadata.adminFee;
 
         if (!tuitionId || !applicationId) {
           return res.status(400).send({ message: 'metadata missing' });
@@ -472,6 +475,8 @@ async function run() {
           studentName,
           studentEmail,
           amount: salary,
+          tutorAmount: tutorAmount,
+          adminFee: adminFee,
           status: 'paid',
           paidAt: new Date(),
           stripeSessionId: session.id,
@@ -533,6 +538,8 @@ async function run() {
           studentName: paymentInfo.studentName,
           studentEmail: paymentInfo.studentEmail,
           salary: paymentInfo.amount,
+          tutorAmount: paymentInfo.tutorAmount,
+          adminFee: paymentInfo.adminFee,
         },
         success_url: `${process.env.SITE_DOMAIN}/dashboard/payment-success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${process.env.SITE_DOMAIN}/dashboard/payment-cancelled`,
