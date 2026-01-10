@@ -54,7 +54,7 @@ if (!admin.apps.length && serviceAccount) {
   });
 }
 
-// ---------- MongoDB (cached for serverless) ----------
+// ---------- MongoDB ----------
 const client = new MongoClient(process.env.DATABASE_URL);
 
 let dbReady = false;
@@ -106,7 +106,7 @@ app.post('/signup', async (req, res) => {
     const existing = await usersCollection.findOne({ email: req.body.email });
 
     if (existing) {
-      return res.status(200).json({ message: 'Email already exists' });
+      return res.status(409).json({ message: 'Email already exists' });
     }
 
     const body = req.body;
@@ -134,6 +134,21 @@ app.get('/users', verifyJwtToken, async (req, res) => {
   } catch (error) {
     console.log(error);
     res.status(500).send({ message: 'Failed to fetch users' });
+  }
+});
+
+// get users (me)
+app.get('/user/me', verifyJwtToken, async (req, res) => {
+  const { uid } = req.decoded;
+
+  try {
+    const result = await usersCollection.findOne({ firebaseUID: uid });
+
+    if (!result) return res.status(404).send({ message: 'User not found' });
+    return res.send(result);
+  } catch (error) {
+    console.log(error);
+    return res.status(500).send({ message: 'Failed to fetch user' });
   }
 });
 
