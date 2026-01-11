@@ -347,8 +347,8 @@ app.get('/all-tuitions', async (req, res) => {
 app.get('/tuition-details/:id', verifyJwtToken, async (req, res) => {
   const { userType } = req.decoded;
 
-  if (userType !== 'teacher') {
-    return res.status(403).send({ message: 'Only teacher can see tuition details!' });
+  if (userType !== 'teacher' && userType !== 'admin') {
+    return res.status(403).send({ message: 'Only teacher or admin can see tuition details!' });
   }
 
   const id = req.params.id;
