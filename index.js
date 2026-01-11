@@ -188,6 +188,24 @@ app.patch('/user/me', verifyJwtToken, async (req, res) => {
   }
 });
 
+// delete user (me)
+app.delete('/user/me', verifyJwtToken, async (req, res) => {
+  const { uid } = req.decoded;
+
+  try {
+    const result = await usersCollection.deleteOne({ firebaseUID: uid });
+
+    if (result.deletedCount === 0) {
+      return res.status(404).send({ message: 'User not found' });
+    }
+
+    return res.send({ message: 'User deleted', result });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).send({ message: 'Failed to delete user' });
+  }
+});
+
 // public tutors
 app.get('/public/tutors', async (req, res) => {
   try {
