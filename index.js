@@ -152,6 +152,42 @@ app.get('/user/me', verifyJwtToken, async (req, res) => {
   }
 });
 
+// update user (me)
+app.patch('/user/me', verifyJwtToken, async (req, res) => {
+  const { uid, userType } = req.decoded;
+
+  try {
+    const query = { firebaseUID: uid };
+    const { name, classLevel, teachingClass, subject, phone, location } = req.body;
+
+    const updatedDoc = {
+      $set: {
+        name,
+        classLevel,
+        teachingClass,
+        subject,
+        phone,
+        location,
+      },
+    };
+
+    // undefined not updated
+    Object.keys(updatedDoc.$set).forEach((key) => {
+      if (updatedDoc.$set[key] === undefined) delete updatedDoc.$set[key];
+    });
+
+    if (Object.keys(updatedDoc.$set).length === 0) {
+      return res.status(400).send({ message: 'Nothing to update' });
+    }
+
+    const result = await usersCollection.updateOne(query, updatedDoc);
+    res.send(result);
+  } catch (error) {
+    console.log(error);
+    return res.status(500).send({ message: 'Failed to update user profile' });
+  }
+});
+
 // public tutors
 app.get('/public/tutors', async (req, res) => {
   try {
