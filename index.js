@@ -188,6 +188,23 @@ app.patch('/user/me', verifyJwtToken, async (req, res) => {
   }
 });
 
+// update user profile picture (me)
+app.patch('/user/me/photo', verifyJwtToken, async (req, res) => {
+  const { uid } = req.decoded;
+  try {
+    const { photoURL } = req.body;
+
+    if (!photoURL) return res.status(400).send({ message: 'photoURL required' });
+
+    const result = await usersCollection.updateOne({ firebaseUID: uid }, { $set: { photoURL } });
+
+    res.send(result);
+  } catch (error) {
+    console.log(error);
+    return res.status(500).send({ message: 'Failed to update user photo' });
+  }
+});
+
 // delete user (me)
 app.delete('/user/me', verifyJwtToken, async (req, res) => {
   const { uid } = req.decoded;
