@@ -31,9 +31,9 @@ const verifyJwtToken = (req, res, next) => {
 
   if (!token) return res.status(401).send({ message: 'Unauthorized access' });
 
-  const idToken = token.split(' ')[1];
+  const jwtToken = token.split(' ')[1];
 
-  jwt.verify(idToken, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+  jwt.verify(jwtToken, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
     if (err) return res.status(403).send({ message: 'Forbidden access' });
 
     req.decoded = decoded;
